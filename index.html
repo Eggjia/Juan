@@ -562,6 +562,91 @@
       font-size: 0.88rem;
     }
 
+    .user-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgba(16, 31, 48, 0.58);
+      backdrop-filter: blur(4px);
+    }
+
+    .user-modal.is-visible {
+      display: grid;
+    }
+
+    .user-dialog {
+      width: min(440px, 100%);
+      border: 1px solid #c9d8ea;
+      border-radius: 8px;
+      padding: 22px;
+      background: #ffffff;
+      box-shadow: 0 24px 60px rgba(12, 25, 40, 0.3);
+    }
+
+    .user-dialog h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: 0;
+    }
+
+    .user-dialog p {
+      margin: 8px 0 18px;
+      color: var(--muted);
+    }
+
+    .user-field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 13px;
+      font-weight: 800;
+    }
+
+    .user-field input {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid #cad6e2;
+      border-radius: 8px;
+      padding: 0 12px;
+      color: var(--text);
+      background: #f8fafc;
+      font: inherit;
+    }
+
+    .user-field input:focus-visible {
+      outline: 4px solid rgba(48, 95, 143, 0.24);
+      outline-offset: 2px;
+    }
+
+    .user-error {
+      min-height: 1.4em;
+      margin: 2px 0 14px;
+      color: #a23622;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .user-confirm {
+      width: 100%;
+      min-height: 48px;
+      border: 0;
+      border-radius: 8px;
+      color: #ffffff;
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .user-confirm:hover {
+      background: var(--accent-strong);
+    }
+
+    body.modal-open {
+      overflow: hidden;
+    }
+
     .chat-launcher {
       position: fixed;
       right: 22px;
@@ -846,6 +931,26 @@
   </style>
 </head>
 <body>
+  <section class="user-modal is-visible" id="userModal" role="dialog" aria-modal="true" aria-hidden="false">
+    <form class="user-dialog" id="userForm" aria-labelledby="user-modal-title" novalidate>
+      <h2 id="user-modal-title">開始前先留下學習紀錄</h2>
+      <p>請輸入姓名與 email。送出後會用於本次操作紀錄，方便老師查看學習歷程。</p>
+
+      <label class="user-field" for="userNameInput">
+        姓名
+        <input id="userNameInput" name="userName" type="text" autocomplete="name" placeholder="例如：王小明" required>
+      </label>
+
+      <label class="user-field" for="userEmailInput">
+        Email
+        <input id="userEmailInput" name="userEmail" type="email" autocomplete="email" placeholder="name@example.com" required>
+      </label>
+
+      <p class="user-error" id="userError" aria-live="polite"></p>
+      <button class="user-confirm" type="submit">確認並開始</button>
+    </form>
+  </section>
+
   <main class="app">
     <header class="header">
       <div>
@@ -983,6 +1088,11 @@
   </button>
 
   <script>
+    const SAVE_API_URL = "/api/save";
+    const LOG_STORAGE_KEY = "insulin-glucose-simulator.pendingLogs.v1";
+    const USER_STORAGE_KEY = "insulin-glucose-simulator.user.v1";
+    const LOG_BATCH_SIZE = 5;
+
     const LIMITS = {
       glucoseMin: 40,
       glucoseMax: 250,
@@ -1018,8 +1128,15 @@
     ];
 
     const state = { ...INITIAL_STATE };
+    let userName = "";
+    let userEmail = "";
 
     const elements = {
+      userModal: document.querySelector("#userModal"),
+      userForm: document.querySelector("#userForm"),
+      userNameInput: document.querySelector("#userNameInput"),
+      userEmailInput: document.querySelector("#userEmailInput"),
+      userError: document.querySelector("#userError"),
       biologyStage: document.querySelector("#biologyStage"),
       particleLayer: document.querySelector("#particleLayer"),
       insulinLayer: document.querySelector("#insulinLayer"),
@@ -1045,6 +1162,8 @@
     };
 
     let timerId = null;
+    let isSendingLogs = false;
+    let logQueue = loadLogQueue();
     const chatHistory = [
       {
         role: "ai",
@@ -1052,8 +1171,111 @@
       }
     ];
 
+    function readJsonFromStorage(key, fallback) {
+      try {
+        const value = window.localStorage.getItem(key);
+        return value ? JSON.parse(value) : fallback;
+      } catch (error) {
+        return fallback;
+      }
+    }
+
+    function writeJsonToStorage(key, value) {
+      try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+      } catch (error) {
+        console.warn("Unable to write localStorage", error);
+      }
+    }
+
+    function loadLogQueue() {
+      const savedQueue = readJsonFromStorage(LOG_STORAGE_KEY, []);
+      return Array.isArray(savedQueue) ? savedQueue : [];
+    }
+
+    function saveLogQueue() {
+      writeJsonToStorage(LOG_STORAGE_KEY, logQueue);
+    }
+
     function clamp(value, min, max) {
       return Math.min(Math.max(value, min), max);
+    }
+
+    function getSimulationSnapshot() {
+      return {
+        glucose: Math.round(state.glucose),
+        insulin: Math.round(state.insulin),
+        cellGlucose: Math.round(state.cellGlucose),
+        glucoseStatus: getGlucoseStatus(state.glucose).label,
+        bloodParticles: getBloodParticleCount(),
+        cellParticles: getCellParticleCount()
+      };
+    }
+
+    function trackLog(eventType, detail = {}, options = {}) {
+      const entry = {
+        timeStamp: new Date().toISOString(),
+        eventType,
+        detail,
+        simulation: getSimulationSnapshot()
+      };
+
+      logQueue.push(entry);
+      saveLogQueue();
+
+      if (options.flushNow || logQueue.length >= LOG_BATCH_SIZE) {
+        flushLogQueue({ force: Boolean(options.flushNow) });
+      }
+    }
+
+    async function flushLogQueue({ force = false } = {}) {
+      if (isSendingLogs || !userName || !userEmail) {
+        return;
+      }
+
+      if (!force && logQueue.length < LOG_BATCH_SIZE) {
+        return;
+      }
+
+      const batchSize = force ? logQueue.length : LOG_BATCH_SIZE;
+      const batch = logQueue.splice(0, batchSize);
+
+      if (batch.length === 0) {
+        return;
+      }
+
+      saveLogQueue();
+      isSendingLogs = true;
+
+      try {
+        const response = await fetch(SAVE_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            userName,
+            userEmail,
+            log: JSON.stringify(batch)
+          })
+        });
+
+        const responseText = await response.text();
+
+        if (!response.ok || responseText.trim() !== "OK") {
+          throw new Error(responseText || `GAS responded with ${response.status}`);
+        }
+      } catch (error) {
+        logQueue = batch.concat(logQueue);
+        saveLogQueue();
+        console.warn("GAS log upload failed; logs are still queued.", error);
+      } finally {
+        isSendingLogs = false;
+
+        if (logQueue.length >= LOG_BATCH_SIZE) {
+          flushLogQueue();
+        }
+      }
     }
 
     function getGlucoseStatus(glucose) {
@@ -1148,6 +1370,10 @@
         ? "血糖已達本模型上限 250 mg/dL。"
         : "攝取葡萄糖後，血管中出現更多黃色葡萄糖粒子。";
       render();
+      trackLog("button_click:add_glucose", {
+        beforeGlucose: before,
+        afterGlucose: after
+      });
     }
 
     function releaseInsulin() {
@@ -1158,6 +1384,10 @@
         ? "胰島素已達本模型上限 100。"
         : "胰島素訊號增加，細胞膜上的通道被打開，葡萄糖會逐步進入細胞。";
       render();
+      trackLog("button_click:release_insulin", {
+        beforeInsulin: before,
+        afterInsulin: after
+      });
     }
 
     function updateSimulation() {
@@ -1209,6 +1439,7 @@
     function resetSimulation() {
       Object.assign(state, INITIAL_STATE);
       render();
+      trackLog("button_click:reset_simulation");
     }
 
     function handleShortcut(event) {
@@ -1226,6 +1457,60 @@
       if (event.key.toLowerCase() === "b") {
         elements.releaseInsulinButton.click();
       }
+    }
+
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    function setUserModalVisible(isVisible) {
+      elements.userModal.classList.toggle("is-visible", isVisible);
+      elements.userModal.setAttribute("aria-hidden", String(!isVisible));
+      document.body.classList.toggle("modal-open", isVisible);
+
+      if (isVisible) {
+        window.setTimeout(() => elements.userNameInput.focus(), 120);
+      }
+    }
+
+    function initializeUserModal() {
+      const savedUser = readJsonFromStorage(USER_STORAGE_KEY, null);
+
+      if (savedUser?.userName) {
+        elements.userNameInput.value = savedUser.userName;
+      }
+
+      if (savedUser?.userEmail) {
+        elements.userEmailInput.value = savedUser.userEmail;
+      }
+
+      setUserModalVisible(true);
+    }
+
+    function handleUserFormSubmit(event) {
+      event.preventDefault();
+
+      const nextUserName = elements.userNameInput.value.trim();
+      const nextUserEmail = elements.userEmailInput.value.trim().toLowerCase();
+
+      if (!nextUserName) {
+        elements.userError.textContent = "請輸入姓名。";
+        elements.userNameInput.focus();
+        return;
+      }
+
+      if (!isValidEmail(nextUserEmail)) {
+        elements.userError.textContent = "請輸入有效的 email 格式。";
+        elements.userEmailInput.focus();
+        return;
+      }
+
+      userName = nextUserName;
+      userEmail = nextUserEmail;
+      elements.userError.textContent = "";
+      writeJsonToStorage(USER_STORAGE_KEY, { userName, userEmail });
+      setUserModalVisible(false);
+      trackLog("user_profile_confirmed", { userName, userEmail }, { flushNow: true });
     }
 
     function setChatOpen(isOpen) {
@@ -1275,6 +1560,9 @@
 
       appendChatMessage("user", userMessage);
       chatHistory.push({ role: "user", content: userMessage });
+      trackLog("chat_message_submitted", {
+        message: userMessage
+      });
       elements.chatInput.value = "";
       elements.chatInput.disabled = true;
       elements.chatSendButton.disabled = true;
@@ -1300,9 +1588,15 @@
         const reply = data.reply || "我暫時想不到合適的回答，請換個方式問我一次。";
         pendingMessage.textContent = reply;
         chatHistory.push({ role: "ai", content: reply });
+        trackLog("chat_reply_received", {
+          reply
+        });
       } catch (error) {
         pendingMessage.textContent = "AI 家教目前連線失敗。請確認 Vercel 環境變數 OPENROUTER_API_KEY 已設定，或稍後再試。";
         pendingMessage.classList.add("error");
+        trackLog("chat_reply_failed", {
+          message: error.message
+        });
       } finally {
         elements.chatInput.disabled = false;
         elements.chatSendButton.disabled = false;
@@ -1313,12 +1607,21 @@
     elements.addGlucoseButton.addEventListener("click", addGlucose);
     elements.releaseInsulinButton.addEventListener("click", releaseInsulin);
     elements.resetButton.addEventListener("click", resetSimulation);
-    elements.chatLauncher.addEventListener("click", () => setChatOpen(!elements.chatWidget.classList.contains("is-open")));
-    elements.chatCloseButton.addEventListener("click", () => setChatOpen(false));
+    elements.userForm.addEventListener("submit", handleUserFormSubmit);
+    elements.chatLauncher.addEventListener("click", () => {
+      const nextOpenState = !elements.chatWidget.classList.contains("is-open");
+      setChatOpen(nextOpenState);
+      trackLog(nextOpenState ? "chat_opened" : "chat_closed");
+    });
+    elements.chatCloseButton.addEventListener("click", () => {
+      setChatOpen(false);
+      trackLog("chat_closed");
+    });
     elements.chatForm.addEventListener("submit", sendChatMessage);
     document.addEventListener("keydown", handleShortcut);
 
     render();
+    initializeUserModal();
     timerId = window.setInterval(updateSimulation, 1000);
   </script>
 </body>
