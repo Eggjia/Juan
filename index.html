@@ -562,6 +562,202 @@
       font-size: 0.88rem;
     }
 
+    .chat-launcher {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 20;
+      width: 60px;
+      height: 60px;
+      border: 0;
+      border-radius: 50%;
+      color: #ffffff;
+      background: #1b74e4;
+      box-shadow: 0 12px 26px rgba(24, 55, 95, 0.28);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    .chat-launcher:hover {
+      background: #1665c1;
+      box-shadow: 0 16px 30px rgba(24, 55, 95, 0.32);
+      transform: translateY(-2px);
+    }
+
+    .chat-launcher:focus-visible,
+    .chat-close:focus-visible,
+    .chat-send:focus-visible,
+    .chat-input:focus-visible {
+      outline: 4px solid rgba(27, 116, 228, 0.3);
+      outline-offset: 3px;
+    }
+
+    .chat-launcher svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    .chat-widget {
+      position: fixed;
+      right: 22px;
+      bottom: 92px;
+      z-index: 21;
+      width: min(360px, calc(100vw - 28px));
+      height: min(520px, calc(100svh - 118px));
+      min-height: 360px;
+      overflow: hidden;
+      border: 1px solid #c9d8ea;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 20px 50px rgba(22, 37, 58, 0.22);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      transform: translateY(12px) scale(0.98);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 180ms ease, opacity 180ms ease;
+    }
+
+    .chat-widget.is-open {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 12px;
+      color: #ffffff;
+      background: #1b74e4;
+    }
+
+    .chat-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .chat-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #1b4d2d;
+      background: #f7d866;
+      font-weight: 900;
+      box-shadow: inset 0 -4px 10px rgba(112, 73, 10, 0.14);
+    }
+
+    .chat-heading {
+      margin: 0;
+      font-size: 0.98rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .chat-subtitle {
+      margin: 0;
+      font-size: 0.78rem;
+      opacity: 0.88;
+      white-space: nowrap;
+    }
+
+    .chat-close {
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 50%;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.16);
+      cursor: pointer;
+      font-size: 1.35rem;
+      line-height: 1;
+    }
+
+    .chat-messages {
+      min-height: 0;
+      padding: 14px 12px;
+      overflow-y: auto;
+      background: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chat-message {
+      max-width: 84%;
+      border-radius: 18px;
+      padding: 9px 12px;
+      font-size: 0.93rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .chat-message.ai {
+      align-self: flex-start;
+      color: #1d2129;
+      background: #ffffff;
+      border-bottom-left-radius: 5px;
+    }
+
+    .chat-message.user {
+      align-self: flex-end;
+      color: #ffffff;
+      background: #1b74e4;
+      border-bottom-right-radius: 5px;
+    }
+
+    .chat-message.error {
+      color: #7d2e1d;
+      background: #fff1ec;
+      border: 1px solid #f0c5b7;
+    }
+
+    .chat-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      padding: 10px;
+      border-top: 1px solid #dde5ee;
+      background: #ffffff;
+    }
+
+    .chat-input {
+      min-width: 0;
+      min-height: 42px;
+      border: 1px solid #cad6e2;
+      border-radius: 999px;
+      padding: 0 14px;
+      color: var(--text);
+      background: #f6f8fa;
+      font: inherit;
+    }
+
+    .chat-send {
+      width: 44px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      color: #ffffff;
+      background: #1b74e4;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 900;
+    }
+
+    .chat-send:disabled,
+    .chat-input:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+    }
+
     @media (max-width: 900px) {
       body {
         overflow: auto;
@@ -613,6 +809,16 @@
 
       .visual-hint {
         text-align: left;
+      }
+
+      .chat-launcher {
+        right: 14px;
+        bottom: 14px;
+      }
+
+      .chat-widget {
+        right: 14px;
+        bottom: 84px;
       }
     }
 
@@ -750,6 +956,32 @@
     <p class="notice">本模擬器使用簡化模型，僅供生物課程學習，不可用於醫療判斷。</p>
   </main>
 
+  <section class="chat-widget" id="chatWidget" aria-label="AI 家教對話框" aria-hidden="true">
+    <div class="chat-header">
+      <div class="chat-title">
+        <div class="chat-avatar" aria-hidden="true">AI</div>
+        <div>
+          <p class="chat-heading">生物 AI 家教</p>
+          <p class="chat-subtitle">問我血糖、胰島素、細胞吸收</p>
+        </div>
+      </div>
+      <button class="chat-close" type="button" id="chatCloseButton" aria-label="關閉 AI 家教對話框">×</button>
+    </div>
+    <div class="chat-messages" id="chatMessages" aria-live="polite">
+      <div class="chat-message ai">嗨，我是這個模擬器裡的 AI 家教。你可以問我：「為什麼按 B 之後血糖會下降？」或「黃色粒子代表什麼？」</div>
+    </div>
+    <form class="chat-form" id="chatForm">
+      <input class="chat-input" id="chatInput" name="message" type="text" autocomplete="off" placeholder="輸入你的問題..." aria-label="輸入給 AI 家教的問題">
+      <button class="chat-send" id="chatSendButton" type="submit" aria-label="送出訊息">➤</button>
+    </form>
+  </section>
+
+  <button class="chat-launcher" type="button" id="chatLauncher" aria-label="開啟 AI 家教對話框" aria-expanded="false" aria-controls="chatWidget">
+    <svg viewBox="0 0 32 32" role="img" aria-hidden="true">
+      <path fill="currentColor" d="M16 4C9.37 4 4 8.8 4 14.72c0 3.4 1.78 6.42 4.55 8.38v4.1c0 .56.64.88 1.09.55l3.46-2.5c.92.13 1.89.2 2.9.2 6.63 0 12-4.8 12-10.73S22.63 4 16 4Zm-5.2 12.1a1.65 1.65 0 1 1 0-3.3 1.65 1.65 0 0 1 0 3.3Zm5.2 0a1.65 1.65 0 1 1 0-3.3 1.65 1.65 0 0 1 0 3.3Zm5.2 0a1.65 1.65 0 1 1 0-3.3 1.65 1.65 0 0 1 0 3.3Z"/>
+    </svg>
+  </button>
+
   <script>
     const LIMITS = {
       glucoseMin: 40,
@@ -802,10 +1034,23 @@
       eventText: document.querySelector("#eventText"),
       addGlucoseButton: document.querySelector("#addGlucoseButton"),
       releaseInsulinButton: document.querySelector("#releaseInsulinButton"),
-      resetButton: document.querySelector("#resetButton")
+      resetButton: document.querySelector("#resetButton"),
+      chatWidget: document.querySelector("#chatWidget"),
+      chatLauncher: document.querySelector("#chatLauncher"),
+      chatCloseButton: document.querySelector("#chatCloseButton"),
+      chatMessages: document.querySelector("#chatMessages"),
+      chatForm: document.querySelector("#chatForm"),
+      chatInput: document.querySelector("#chatInput"),
+      chatSendButton: document.querySelector("#chatSendButton")
     };
 
     let timerId = null;
+    const chatHistory = [
+      {
+        role: "ai",
+        content: "嗨，我是這個模擬器裡的 AI 家教。你可以問我：「為什麼按 B 之後血糖會下降？」或「黃色粒子代表什麼？」"
+      }
+    ];
 
     function clamp(value, min, max) {
       return Math.min(Math.max(value, min), max);
@@ -983,9 +1228,94 @@
       }
     }
 
+    function setChatOpen(isOpen) {
+      elements.chatWidget.classList.toggle("is-open", isOpen);
+      elements.chatWidget.setAttribute("aria-hidden", String(!isOpen));
+      elements.chatLauncher.setAttribute("aria-expanded", String(isOpen));
+
+      if (isOpen) {
+        window.setTimeout(() => elements.chatInput.focus(), 120);
+      }
+    }
+
+    function appendChatMessage(role, content, extraClass = "") {
+      const message = document.createElement("div");
+      message.className = `chat-message ${role}${extraClass ? ` ${extraClass}` : ""}`;
+      message.textContent = content;
+      elements.chatMessages.appendChild(message);
+      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+      return message;
+    }
+
+    function buildTutorPrompt(userMessage) {
+      const status = getGlucoseStatus(state.glucose).label;
+      const recentMessages = chatHistory
+        .slice(-8)
+        .map((entry) => `${entry.role === "user" ? "學生" : "AI家教"}：${entry.content}`)
+        .join("\n");
+
+      return [
+        "你是高中生物課的 AI 家教，正在協助學生使用「胰島素與葡萄糖調節模擬器」。",
+        "請使用繁體中文回答，語氣親切、簡潔、適合高中生。",
+        "回答要基於這個 web app 的情境：A 會讓血管中的葡萄糖粒子增加；B 會增加胰島素訊號，讓血管葡萄糖減少並進入細胞；這是教學用簡化模型，不可提供醫療診斷或治療建議。",
+        `目前模擬狀態：血糖 ${Math.round(state.glucose)} mg/dL，血糖狀態 ${status}，胰島素相對量 ${Math.round(state.insulin)} / 100，細胞內葡萄糖相對量 ${Math.round(state.cellGlucose)}。`,
+        "最近對話：",
+        recentMessages || "無",
+        `學生現在問：${userMessage}`
+      ].join("\n");
+    }
+
+    async function sendChatMessage(event) {
+      event.preventDefault();
+
+      const userMessage = elements.chatInput.value.trim();
+      if (!userMessage) {
+        return;
+      }
+
+      appendChatMessage("user", userMessage);
+      chatHistory.push({ role: "user", content: userMessage });
+      elements.chatInput.value = "";
+      elements.chatInput.disabled = true;
+      elements.chatSendButton.disabled = true;
+      const pendingMessage = appendChatMessage("ai", "正在想一下...");
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: buildTutorPrompt(userMessage)
+          })
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.error || "AI 家教暫時無法回覆。");
+        }
+
+        const reply = data.reply || "我暫時想不到合適的回答，請換個方式問我一次。";
+        pendingMessage.textContent = reply;
+        chatHistory.push({ role: "ai", content: reply });
+      } catch (error) {
+        pendingMessage.textContent = "AI 家教目前連線失敗。請確認 Vercel 環境變數 OPENROUTER_API_KEY 已設定，或稍後再試。";
+        pendingMessage.classList.add("error");
+      } finally {
+        elements.chatInput.disabled = false;
+        elements.chatSendButton.disabled = false;
+        elements.chatInput.focus();
+      }
+    }
+
     elements.addGlucoseButton.addEventListener("click", addGlucose);
     elements.releaseInsulinButton.addEventListener("click", releaseInsulin);
     elements.resetButton.addEventListener("click", resetSimulation);
+    elements.chatLauncher.addEventListener("click", () => setChatOpen(!elements.chatWidget.classList.contains("is-open")));
+    elements.chatCloseButton.addEventListener("click", () => setChatOpen(false));
+    elements.chatForm.addEventListener("submit", sendChatMessage);
     document.addEventListener("keydown", handleShortcut);
 
     render();
