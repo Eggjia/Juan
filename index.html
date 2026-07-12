@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>胰島素與葡萄糖調節模擬器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-soft: #eef4f8;
+      --text: #17202a;
+      --muted: #5c6b7a;
+      --line: #d5e0ea;
+      --blood: #d94b4b;
+      --blood-dark: #9f2d32;
+      --cell: #68a878;
+      --cell-dark: #336b46;
+      --glucose: #f4c542;
+      --insulin: #5d86d7;
+      --low: #2473b7;
+      --normal: #21845b;
+      --high: #c84f2b;
+      --low-soft: #d9ecfb;
+      --normal-soft: #dcf3e9;
+      --high-soft: #fde5dc;
+      --accent: #305f8f;
+      --accent-strong: #214c75;
+      --shadow: 0 16px 36px rgba(27, 42, 63, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-width: 320px;
+      margin: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+      color: var(--text);
+      background: linear-gradient(180deg, #eaf1f8 0%, var(--bg) 55%, #f8fafc 100%);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      width: min(100% - 24px, 1180px);
+      min-height: 100svh;
+      margin: 0 auto;
+      padding: 16px 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 12px;
+    }
+
+    .header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .eyebrow {
+      margin: 0 0 3px;
+      color: var(--accent-strong);
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.55rem, 2.8vw, 2.55rem);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .intro {
+      max-width: 34ch;
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      text-align: right;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(310px, 0.85fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: var(--shadow);
+    }
+
+    .visual-panel {
+      min-height: 0;
+      padding: 16px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-title h2,
+    .section-title {
+      margin: 0;
+      font-size: 1.02rem;
+      letter-spacing: 0;
+    }
+
+    .visual-hint {
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .biology-stage {
+      position: relative;
+      min-height: 330px;
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid #cfdce8;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0)),
+        #e9f3f8;
+    }
+
+    .vessel {
+      position: absolute;
+      left: 4%;
+      right: 4%;
+      top: 9%;
+      height: 34%;
+      overflow: hidden;
+      border: 3px solid var(--blood-dark);
+      border-radius: 999px;
+      background:
+        radial-gradient(circle at 20% 35%, rgba(255,255,255,0.35), transparent 13%),
+        linear-gradient(180deg, #f28a82 0%, var(--blood) 46%, #b9323b 100%);
+      box-shadow: inset 0 12px 28px rgba(255,255,255,0.32), inset 0 -14px 26px rgba(91, 14, 20, 0.28);
+    }
+
+    .vessel-label,
+    .cell-label {
+      position: absolute;
+      z-index: 3;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.84rem;
+      font-weight: 900;
+      background: rgba(255,255,255,0.86);
+      box-shadow: 0 6px 16px rgba(27, 42, 63, 0.12);
+    }
+
+    .vessel-label {
+      left: 6%;
+      top: 12%;
+      color: #7b1f29;
+    }
+
+    .cell-label {
+      left: 9%;
+      bottom: 30%;
+      color: var(--cell-dark);
+    }
+
+    .cell {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      bottom: 8%;
+      height: 38%;
+      overflow: hidden;
+      border: 3px solid var(--cell-dark);
+      border-radius: 42% 58% 48% 52% / 55% 44% 56% 45%;
+      background:
+        radial-gradient(circle at 70% 46%, rgba(255,255,255,0.45) 0 8%, transparent 9%),
+        radial-gradient(circle at 50% 50%, #9ecfa7 0 15%, transparent 16%),
+        linear-gradient(145deg, #bce3bd, var(--cell));
+      box-shadow: inset 0 14px 30px rgba(255,255,255,0.45), inset 0 -16px 28px rgba(28, 86, 54, 0.22);
+    }
+
+    .membrane-gates {
+      position: absolute;
+      left: 15%;
+      right: 15%;
+      top: 49%;
+      height: 16px;
+      display: flex;
+      justify-content: space-around;
+      pointer-events: none;
+    }
+
+    .gate {
+      width: 38px;
+      height: 16px;
+      border: 2px solid #295f3f;
+      border-radius: 999px;
+      background: #d9f0dc;
+      opacity: 0.7;
+      transition: transform 220ms ease, background 220ms ease, opacity 220ms ease;
+    }
+
+    .stage-active .gate {
+      background: #f8d98a;
+      opacity: 1;
+      transform: scaleX(1.16);
+    }
+
+    .particle-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      width: 17px;
+      height: 17px;
+      border: 2px solid rgba(112, 73, 10, 0.42);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 34% 30%, #fff7bd 0 20%, transparent 22%),
+        var(--glucose);
+      box-shadow: 0 3px 9px rgba(88, 64, 10, 0.24);
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+      transition: left 520ms ease, top 520ms ease, opacity 240ms ease, transform 240ms ease;
+    }
+
+    .particle.inside-cell {
+      border-color: rgba(48, 96, 52, 0.5);
+    }
+
+    .insulin-dot {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(29, 62, 129, 0.35);
+      border-radius: 3px;
+      background:
+        radial-gradient(circle at 35% 28%, rgba(255,255,255,0.95) 0 18%, transparent 20%),
+        var(--insulin);
+      box-shadow: 0 3px 9px rgba(29, 62, 129, 0.2);
+      transform: translate(-50%, -50%) rotate(45deg);
+      opacity: 0.95;
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-sample {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--glucose);
+      border: 1px solid rgba(112, 73, 10, 0.4);
+    }
+
+    .legend-sample.insulin {
+      border-radius: 3px;
+      background: var(--insulin);
+      transform: rotate(45deg);
+    }
+
+    .control-panel {
+      min-height: 0;
+      padding: 16px;
+      display: grid;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .reading-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+      gap: 10px;
+    }
+
+    .label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 800;
+    }
+
+    .glucose-value {
+      margin: 2px 0 0;
+      font-size: clamp(2.2rem, 4.4vw, 4.1rem);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .unit {
+      font-size: clamp(0.9rem, 1.6vw, 1.2rem);
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .status-badge {
+      min-width: 86px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      padding: 7px 10px;
+      text-align: center;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .status-low {
+      color: var(--low);
+      background: var(--low-soft);
+    }
+
+    .status-normal {
+      color: var(--normal);
+      background: var(--normal-soft);
+    }
+
+    .status-high {
+      color: var(--high);
+      background: var(--high-soft);
+    }
+
+    .meter {
+      position: relative;
+      padding-top: 25px;
+    }
+
+    .meter-track {
+      position: relative;
+      height: 24px;
+      overflow: hidden;
+      border: 1px solid rgba(23, 32, 42, 0.18);
+      border-radius: 999px;
+      background:
+        linear-gradient(90deg,
+          var(--low) 0%,
+          var(--low) 14.28%,
+          var(--normal) 14.28%,
+          var(--normal) 47.62%,
+          var(--high) 47.62%,
+          var(--high) 100%);
+    }
+
+    .meter-track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+    }
+
+    .meter-pointer {
+      position: absolute;
+      top: 0;
+      left: var(--pointer-left, 23.8%);
+      width: 18px;
+      height: 40px;
+      transform: translateX(-50%);
+      transition: left 260ms ease;
+      z-index: 2;
+    }
+
+    .meter-pointer::before {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 50%;
+      width: 13px;
+      height: 13px;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      background: var(--text);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+      transform: translateX(-50%);
+    }
+
+    .meter-pointer::after {
+      content: "";
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      width: 4px;
+      height: 22px;
+      border-radius: 999px;
+      background: var(--text);
+      transform: translateX(-50%);
+    }
+
+    .meter-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .range-key {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .key-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      background: currentColor;
+    }
+
+    .insulin-value {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-weight: 900;
+    }
+
+    .progress {
+      height: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-soft);
+    }
+
+    .progress-fill {
+      width: var(--insulin-width, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #78b7d8, #4d79b8);
+      transition: width 260ms ease;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .button {
+      min-height: 55px;
+      border: 0;
+      border-radius: var(--radius);
+      padding: 11px 12px;
+      color: #ffffff;
+      background: var(--accent);
+      font-weight: 900;
+      cursor: pointer;
+      transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+    }
+
+    .button:hover {
+      background: var(--accent-strong);
+      box-shadow: 0 8px 18px rgba(33, 76, 117, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .button:active {
+      transform: translateY(0);
+    }
+
+    .button:focus-visible {
+      outline: 4px solid rgba(48, 95, 143, 0.34);
+      outline-offset: 3px;
+    }
+
+    .button-secondary {
+      grid-column: 1 / -1;
+      min-height: 46px;
+      color: var(--accent-strong);
+      background: #e6eef6;
+    }
+
+    .button-secondary:hover {
+      background: #d9e7f3;
+      box-shadow: none;
+    }
+
+    .button small {
+      display: block;
+      margin-top: 1px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      opacity: 0.9;
+    }
+
+    .event-box {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .event-text {
+      min-height: 0;
+      margin: 0;
+      overflow: auto;
+      color: var(--text);
+      font-size: 0.94rem;
+    }
+
+    .notice {
+      margin: 0;
+      padding: 9px 12px;
+      border: 1px solid #f0c5b7;
+      border-radius: var(--radius);
+      color: #70402d;
+      background: #fff3ee;
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        min-height: auto;
+        padding: 14px 0;
+      }
+
+      .header,
+      .workspace {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .intro {
+        max-width: none;
+        text-align: left;
+      }
+
+      .biology-stage {
+        min-height: 310px;
+        height: 46svh;
+      }
+
+      .control-panel {
+        overflow: visible;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .app {
+        width: min(100% - 20px, 1180px);
+      }
+
+      .reading-row,
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .status-badge {
+        justify-self: start;
+      }
+
+      .button-secondary {
+        grid-column: auto;
+      }
+
+      .visual-hint {
+        text-align: left;
+      }
+    }
+
+    @media (min-width: 901px) and (orientation: landscape) {
+      body {
+        overflow: hidden;
+      }
+
+      .app {
+        height: 100svh;
+        max-height: 100svh;
+        overflow: hidden;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+        animation-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div>
+        <p class="eyebrow">高中生物互動實驗</p>
+        <h1>胰島素與葡萄糖調節模擬器</h1>
+      </div>
+      <p class="intro">按 A 讓葡萄糖進入血管；按 B 讓胰島素促進葡萄糖進入細胞。</p>
+    </header>
+
+    <div class="workspace">
+      <section class="panel visual-panel" aria-labelledby="visual-title">
+        <div class="panel-title">
+          <h2 id="visual-title">血管與細胞觀察區</h2>
+          <span class="visual-hint">黃色圓點代表葡萄糖，藍色方點代表胰島素</span>
+        </div>
+
+        <div class="biology-stage" id="biologyStage" aria-label="血管與細胞的葡萄糖移動示意圖">
+          <div class="vessel" aria-hidden="true"></div>
+          <div class="cell" aria-hidden="true"></div>
+          <div class="membrane-gates" aria-hidden="true">
+            <span class="gate"></span>
+            <span class="gate"></span>
+            <span class="gate"></span>
+            <span class="gate"></span>
+          </div>
+          <span class="vessel-label">血管 <span id="bloodParticleCount">4</span> 顆</span>
+          <span class="cell-label">細胞 <span id="cellParticleCount">0</span> 顆</span>
+          <div class="particle-layer" id="particleLayer" aria-hidden="true"></div>
+          <div class="particle-layer" id="insulinLayer" aria-hidden="true"></div>
+        </div>
+
+        <div class="legend" aria-hidden="true">
+          <span class="legend-item"><span class="legend-sample"></span>葡萄糖粒子</span>
+          <span class="legend-item"><span class="legend-sample insulin"></span>胰島素訊號</span>
+          <span class="legend-item">胰島素作用時，血管葡萄糖會減少並進入細胞</span>
+        </div>
+      </section>
+
+      <section class="panel control-panel" aria-label="控制與監測區">
+        <div>
+          <div class="reading-row">
+            <div>
+              <p class="label" id="meter-title">目前血糖</p>
+              <div class="glucose-value">
+                <span id="glucoseValue">90</span>
+                <span class="unit">mg/dL</span>
+              </div>
+            </div>
+            <div class="status-badge status-normal" id="statusBadge">正常範圍</div>
+          </div>
+
+          <div
+            class="meter"
+            id="glucoseMeter"
+            role="meter"
+            aria-valuemin="40"
+            aria-valuemax="250"
+            aria-valuenow="90"
+            aria-valuetext="目前血糖 90 mg/dL，正常範圍"
+          >
+            <div class="meter-pointer" id="meterPointer" aria-hidden="true"></div>
+            <div class="meter-track" aria-hidden="true"></div>
+            <div class="meter-scale" aria-hidden="true">
+              <span>40</span>
+              <span>70</span>
+              <span>140</span>
+              <span>250</span>
+            </div>
+          </div>
+
+          <div class="range-key" aria-label="血糖區間說明">
+            <span class="key-item" style="color: var(--low);"><span class="swatch"></span>偏低</span>
+            <span class="key-item" style="color: var(--normal);"><span class="swatch"></span>正常 70–140</span>
+            <span class="key-item" style="color: var(--high);"><span class="swatch"></span>偏高</span>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="section-title" id="insulin-title">胰島素狀態</h2>
+          <div class="insulin-value">
+            <span>相對量</span>
+            <span><span id="insulinValue">0</span> / 100</span>
+          </div>
+          <div class="progress" aria-hidden="true">
+            <div class="progress-fill" id="insulinFill"></div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="button" type="button" id="addGlucoseButton">
+            A　攝取葡萄糖
+            <small>血管葡萄糖 +30 mg/dL</small>
+          </button>
+          <button class="button" type="button" id="releaseInsulinButton">
+            B　分泌胰島素
+            <small>促進葡萄糖進入細胞</small>
+          </button>
+          <button class="button button-secondary" type="button" id="resetButton">重新開始</button>
+        </div>
+
+        <div class="event-box">
+          <h2 class="section-title" id="message-title">即時解說</h2>
+          <p class="event-text" id="eventText" aria-live="polite">目前血糖在正常範圍。試著按 A 攝取葡萄糖，再按 B 觀察胰島素作用。</p>
+        </div>
+      </section>
+    </div>
+
+    <p class="notice">本模擬器使用簡化模型，僅供生物課程學習，不可用於醫療判斷。</p>
+  </main>
+
+  <script>
+    const LIMITS = {
+      glucoseMin: 40,
+      glucoseMax: 250,
+      insulinMin: 0,
+      insulinMax: 100,
+      cellGlucoseMin: 0,
+      cellGlucoseMax: 160
+    };
+
+    const INITIAL_STATE = {
+      glucose: 90,
+      insulin: 0,
+      cellGlucose: 0,
+      lastEvent: "目前血糖在正常範圍。試著按 A 攝取葡萄糖，再按 B 觀察胰島素作用。"
+    };
+
+    const BLOOD_PARTICLES = [
+      [10, 20], [18, 29], [26, 18], [33, 34], [41, 23], [49, 30], [57, 18], [66, 33],
+      [75, 22], [84, 31], [92, 20], [13, 36], [22, 39], [31, 37], [39, 40], [48, 36],
+      [56, 39], [64, 37], [72, 40], [81, 36], [89, 39], [17, 25], [28, 27], [38, 28],
+      [52, 26], [62, 27], [74, 28], [86, 26], [8, 31], [93, 33], [45, 17], [68, 17]
+    ];
+
+    const CELL_PARTICLES = [
+      [17, 74], [24, 84], [32, 70], [40, 82], [48, 72], [56, 84], [64, 70], [72, 82],
+      [80, 73], [22, 61], [32, 54], [43, 62], [53, 55], [63, 62], [74, 55], [84, 63],
+      [29, 43], [41, 38], [53, 44], [66, 38], [76, 45], [20, 92], [50, 93], [79, 91]
+    ];
+
+    const INSULIN_PARTICLES = [
+      [21, 47], [30, 50], [39, 47], [48, 51], [57, 47], [66, 51], [75, 47], [84, 50],
+      [26, 41], [52, 42], [70, 41], [88, 43]
+    ];
+
+    const state = { ...INITIAL_STATE };
+
+    const elements = {
+      biologyStage: document.querySelector("#biologyStage"),
+      particleLayer: document.querySelector("#particleLayer"),
+      insulinLayer: document.querySelector("#insulinLayer"),
+      bloodParticleCount: document.querySelector("#bloodParticleCount"),
+      cellParticleCount: document.querySelector("#cellParticleCount"),
+      glucoseValue: document.querySelector("#glucoseValue"),
+      statusBadge: document.querySelector("#statusBadge"),
+      glucoseMeter: document.querySelector("#glucoseMeter"),
+      meterPointer: document.querySelector("#meterPointer"),
+      insulinValue: document.querySelector("#insulinValue"),
+      insulinFill: document.querySelector("#insulinFill"),
+      eventText: document.querySelector("#eventText"),
+      addGlucoseButton: document.querySelector("#addGlucoseButton"),
+      releaseInsulinButton: document.querySelector("#releaseInsulinButton"),
+      resetButton: document.querySelector("#resetButton")
+    };
+
+    let timerId = null;
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function getGlucoseStatus(glucose) {
+      if (glucose <= 50) {
+        return {
+          label: "非常低",
+          className: "status-low",
+          message: "血糖非常低。這裡只呈現教學模型中的狀態，不提供醫療建議。"
+        };
+      }
+
+      if (glucose < 70) {
+        return {
+          label: "偏低",
+          className: "status-low",
+          message: "血糖偏低。可以觀察 Meter 已經移到藍色區間。"
+        };
+      }
+
+      if (glucose <= 140) {
+        return {
+          label: "正常範圍",
+          className: "status-normal",
+          message: "血糖在正常範圍。"
+        };
+      }
+
+      if (glucose >= 220) {
+        return {
+          label: "非常高",
+          className: "status-high",
+          message: "血糖非常高。這裡只呈現教學模型中的狀態，不提供醫療建議。"
+        };
+      }
+
+      return {
+        label: "偏高",
+        className: "status-high",
+        message: "血糖偏高。可以按 B 觀察胰島素如何讓血管中的葡萄糖進入細胞。"
+      };
+    }
+
+    function getBloodParticleCount() {
+      const percent = (state.glucose - LIMITS.glucoseMin) / (LIMITS.glucoseMax - LIMITS.glucoseMin);
+      return clamp(Math.round(percent * BLOOD_PARTICLES.length), 0, BLOOD_PARTICLES.length);
+    }
+
+    function getCellParticleCount() {
+      const percent = state.cellGlucose / LIMITS.cellGlucoseMax;
+      return clamp(Math.round(percent * CELL_PARTICLES.length), 0, CELL_PARTICLES.length);
+    }
+
+    function getInsulinParticleCount() {
+      const percent = state.insulin / LIMITS.insulinMax;
+      return clamp(Math.round(percent * INSULIN_PARTICLES.length), 0, INSULIN_PARTICLES.length);
+    }
+
+    function renderParticles() {
+      const bloodCount = getBloodParticleCount();
+      const cellCount = getCellParticleCount();
+      const insulinCount = getInsulinParticleCount();
+      const glucoseMarkup = [];
+      const insulinMarkup = [];
+
+      for (let index = 0; index < bloodCount; index += 1) {
+        const [left, top] = BLOOD_PARTICLES[index];
+        glucoseMarkup.push(`<span class="particle" style="left:${left}%; top:${top}%"></span>`);
+      }
+
+      for (let index = 0; index < cellCount; index += 1) {
+        const [left, top] = CELL_PARTICLES[index];
+        glucoseMarkup.push(`<span class="particle inside-cell" style="left:${left}%; top:${top}%"></span>`);
+      }
+
+      for (let index = 0; index < insulinCount; index += 1) {
+        const [left, top] = INSULIN_PARTICLES[index];
+        insulinMarkup.push(`<span class="insulin-dot" style="left:${left}%; top:${top}%"></span>`);
+      }
+
+      elements.particleLayer.innerHTML = glucoseMarkup.join("");
+      elements.insulinLayer.innerHTML = insulinMarkup.join("");
+      elements.bloodParticleCount.textContent = bloodCount;
+      elements.cellParticleCount.textContent = cellCount;
+      elements.biologyStage.classList.toggle("stage-active", state.insulin > 0);
+    }
+
+    function addGlucose() {
+      const before = Math.round(state.glucose);
+      state.glucose = clamp(state.glucose + 30, LIMITS.glucoseMin, LIMITS.glucoseMax);
+      const after = Math.round(state.glucose);
+      state.lastEvent = after === before
+        ? "血糖已達本模型上限 250 mg/dL。"
+        : "攝取葡萄糖後，血管中出現更多黃色葡萄糖粒子。";
+      render();
+    }
+
+    function releaseInsulin() {
+      const before = Math.round(state.insulin);
+      state.insulin = clamp(state.insulin + 25, LIMITS.insulinMin, LIMITS.insulinMax);
+      const after = Math.round(state.insulin);
+      state.lastEvent = after === before
+        ? "胰島素已達本模型上限 100。"
+        : "胰島素訊號增加，細胞膜上的通道被打開，葡萄糖會逐步進入細胞。";
+      render();
+    }
+
+    function updateSimulation() {
+      const previousGlucose = state.glucose;
+      const previousInsulin = state.insulin;
+
+      if (state.insulin > 0 && state.glucose > LIMITS.glucoseMin) {
+        const glucoseDrop = Math.min(state.insulin * 0.08, state.glucose - LIMITS.glucoseMin);
+        state.glucose = clamp(state.glucose - glucoseDrop, LIMITS.glucoseMin, LIMITS.glucoseMax);
+        state.cellGlucose = clamp(state.cellGlucose + glucoseDrop, LIMITS.cellGlucoseMin, LIMITS.cellGlucoseMax);
+      }
+
+      state.insulin = clamp(state.insulin - 4, LIMITS.insulinMin, LIMITS.insulinMax);
+
+      if (previousInsulin > 0 && previousGlucose > state.glucose) {
+        state.lastEvent = "胰島素正在作用，血管中的葡萄糖粒子減少，並逐漸出現在細胞中。";
+      }
+
+      render();
+    }
+
+    function render() {
+      const roundedGlucose = Math.round(state.glucose);
+      const roundedInsulin = Math.round(state.insulin);
+      const percent = clamp(
+        ((state.glucose - LIMITS.glucoseMin) / (LIMITS.glucoseMax - LIMITS.glucoseMin)) * 100,
+        0,
+        100
+      );
+      const status = getGlucoseStatus(state.glucose);
+      const statusClasses = ["status-low", "status-normal", "status-high"];
+
+      elements.glucoseValue.textContent = roundedGlucose;
+      elements.statusBadge.textContent = status.label;
+      elements.statusBadge.classList.remove(...statusClasses);
+      elements.statusBadge.classList.add(status.className);
+      elements.glucoseMeter.setAttribute("aria-valuenow", String(roundedGlucose));
+      elements.glucoseMeter.setAttribute(
+        "aria-valuetext",
+        `目前血糖 ${roundedGlucose} mg/dL，${status.label}`
+      );
+      elements.meterPointer.style.setProperty("--pointer-left", `${percent}%`);
+      elements.insulinValue.textContent = roundedInsulin;
+      elements.insulinFill.style.setProperty("--insulin-width", `${roundedInsulin}%`);
+      elements.eventText.textContent = `${state.lastEvent} ${status.message}`;
+      renderParticles();
+    }
+
+    function resetSimulation() {
+      Object.assign(state, INITIAL_STATE);
+      render();
+    }
+
+    function handleShortcut(event) {
+      const tagName = event.target.tagName;
+      const isTyping = tagName === "INPUT" || tagName === "TEXTAREA" || event.target.isContentEditable;
+
+      if (isTyping || event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "a") {
+        elements.addGlucoseButton.click();
+      }
+
+      if (event.key.toLowerCase() === "b") {
+        elements.releaseInsulinButton.click();
+      }
+    }
+
+    elements.addGlucoseButton.addEventListener("click", addGlucose);
+    elements.releaseInsulinButton.addEventListener("click", releaseInsulin);
+    elements.resetButton.addEventListener("click", resetSimulation);
+    document.addEventListener("keydown", handleShortcut);
+
+    render();
+    timerId = window.setInterval(updateSimulation, 1000);
+  </script>
+</body>
+</html>
